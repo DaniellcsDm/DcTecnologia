@@ -5,6 +5,7 @@
     <div class="row justify-content-center">
         <div class="col-md-12">
             <div class="card">
+                
                 <div class="card-header">{{ __('Listagem de Vendas') }}</div>
 
                 <div class="card-body">
@@ -31,6 +32,7 @@
                         </div>
 
                         <button type="submit" class="btn btn-primary">Filtrar</button>
+                        <a href="{{ route('vendas.create') }}" class="btn btn-success">Criar Venda</a>
                     </form>
 
                     <!-- Tabela de listagem de vendas -->
@@ -56,6 +58,7 @@
                     </table>
 
                     {{ $vendas->links() }} <!-- Paginação -->
+                
                 </div>
             </div>
         </div>

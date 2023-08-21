@@ -9,6 +9,7 @@ class Venda extends Model
 {
     use HasFactory;
 
+
     protected $fillable = ['cliente_id', 'user_id', 'forma_pagamento'];
 
     public function cliente()
@@ -30,4 +31,11 @@ class Venda extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
+    public function formaPagamento()
+    {
+        return $this->belongsTo(FormaPagamento::class, 'forma_pagamento');
+    }
+
+
 }

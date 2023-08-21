@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Dompdf\Adapter\PDFLib;
 use App\Models\FormaPagamento;
 use App\Models\Produto;
+use Barryvdh\DomPDF\Facade\Pdf as FacadePdf;
 use PDF; 
 
 
@@ -22,21 +23,23 @@ class VendaController extends Controller
     public function create()
     {
         $clientes = Cliente::all();
-        $formasPagamento = ['dinheiro', 'cheque', 'credito', 'debito'];
+        $formasPagamento = ['avista', 'parcelado'];
         $produtos = Produto::all();
-        $chequeCount = Venda::where('forma_pagamento', 'cheque')->count();
+        $chequeCount=Venda::where('forma_pagamento_id','cheque')->count();
     
         return view('vendas.create', [
             'clientes' => $clientes,
             'formasPagamento' => $formasPagamento,
-            'chequeCount' => $chequeCount, // Adicione esta linha
+            'chequeCount' => $chequeCount,
+            'produtos' => $produtos,
+    
         ]);
     }  
 
     public function store(Request $request)
     {
         $request->validate([
-            'cliente_id' => 'nullable|exists:clientes,id', // Selecione um cliente existente (se informado)
+            'cliente_id' => 'nullable|exists:clientes,id', 
             'valor_total' => 'required|numeric|min:0',
             'forma_pagamento' => 'required|in:dinheiro,cheque,credito,debito',
             'num_parcelas' => 'required|integer|min:1',
@@ -47,12 +50,22 @@ class VendaController extends Controller
         ]);
     
         $venda = Venda::create([
-            'cliente_id' => $request->input('cliente_id'), // Id do cliente (opcional)
+            'cliente_id' => $request->input('cliente_id'), 
             'valor_total' => $request->input('valor_total'),
             'forma_pagamento' => $request->input('forma_pagamento'),
             'produtos' => $request->input('produtos'),
         ]);
     
+        foreach ($request->input('produtos') as $produtoId => $produtoData) {
+            $produto = Produto::findOrFail($produtoId);
+            $quantidade = $produtoData['quantidade'];
+            $valorUnitario = $produtoData['valor'];
+
+            $venda->produtos()->attach($produto, [
+                'quantidade' => $quantidade,
+                'valor_unitario' => $valorUnitario,
+            ]);
+        }
         // Geração de parcelas
         $valorTotal = $request->input('valor_total');
         $numParcelas = $request->input('num_parcelas');
@@ -67,7 +80,7 @@ class VendaController extends Controller
             ]);
             $venda->parcelas()->save($parcela);
     
-            // Incrementar a data de vencimento para a próxima parcela
+            
             $dataVencimento = date('Y-m-d', strtotime("+1 month", strtotime($dataVencimento)));
         }
     
@@ -78,31 +91,38 @@ class VendaController extends Controller
 
 
     public function index(Request $request)
-{
-    $chequeCount = Venda::where('forma_pagamento', 'cheque')->count();
-    $filtroCliente = $request->input('cliente');
-    $filtroFormaPagamento = $request->input('forma_pagamento');
+    {
+        $chequeCount=Venda::where('forma_pagamento_id','cheque')->count();
+        $filtroCliente = $request->input('cliente');
+        $filtroFormaPagamento = $request->input('formaPagamento');
 
-    $vendas = Venda::when($filtroCliente, function ($query, $filtroCliente) {
-        return $query->where('cliente_id', $filtroCliente);
-    })
-    ->when($filtroFormaPagamento, function ($query, $filtroFormaPagamento) {
-        return $query->where('forma_pagamento', $filtroFormaPagamento);
-    })
-    ->orderBy('created_at', 'desc')
-    ->paginate(10);
+        $vendas = Venda::when($filtroCliente, function ($query) use ($filtroCliente) {
+            return $query->where('cliente_id', $filtroCliente);
+        })
+        ->when($filtroFormaPagamento, function ($query) use ($filtroFormaPagamento) {
+            return $query->whereHas('formaPagamento', function ($query) use ($filtroFormaPagamento) {
+                $query->where('nome', $filtroFormaPagamento);
+            });
+        })
+        ->orderBy('created_at', 'desc')
+        ->paginate(10);
 
-    $clientes = Cliente::all(); // Carregue todos os clientes do banco de dados
-    $formasPagamento = ['dinheiro', 'cheque', 'credito', 'debito'];
+        $clientes = Cliente::all();
+        $formasPagamento = ['avista', 'parcelado'];
 
-    return view('vendas.index', [
-        'vendas' => $vendas,
-        'clientes' => $clientes,
-        'formasPagamento' => $formasPagamento,
-        'chequeCount' => $chequeCount, // Adicione esta linha
-    ]);
-}
+        return view('vendas.index', [
+            'vendas' => $vendas,
+            'clientes' => $clientes,
+            'formasPagamento' => $formasPagamento,
+            'chequeCount' => $chequeCount,
+        ]);
+    }
+    
 
+    public function show(Venda $venda)
+    {
+        return view('vendas.show', ['venda' => $venda]);
+    }
 
 
 
@@ -110,7 +130,7 @@ class VendaController extends Controller
     {
     // Carregue os dados necessários para os selects de cliente e forma de pagamento
     $clientes = Cliente::all();
-    $formasPagamento = ['dinheiro', 'cheque', 'credito', 'debito'];
+    $formasPagamento = ['avista', 'parcelado'];
     $produtos = Produto::all(); // Carregue todos os produtos
 
     return view('vendas.edit', [
@@ -129,7 +149,8 @@ class VendaController extends Controller
 
     public function generatePDF(Venda $venda)
     {
-        $pdf = PDF::loadView('vendas.pdf', ['venda' => $venda]);
+        
+        $pdf = FacadePdf::loadView('vendas.pdf', ['venda' => $venda]);
         return $pdf->download('resumo_venda.pdf');
     }
 

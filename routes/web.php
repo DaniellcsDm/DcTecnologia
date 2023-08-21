@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\Auth\VerificationController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\VendaController;
@@ -44,8 +45,10 @@ Route::post('email/resend', [VerificationController::class, 'resend'])->name('ve
 
 // Rotas De Vendas
 Route::get('/vendas/create', [VendaController::class, 'create'])->name('vendas.create');
+Route::post('/vendas', [VendaController::class, 'store'])->name('vendas.store');
+Route::get('/vendas/{venda}', [VendaController::class, 'show'])->name('vendas.show');
 Route::get('/vendas', [VendaController::class, 'index'])->name('vendas.index');
-Route::get('/vendas/{venda}/editar', [VendaController::class, 'edit'])->name('vendas.edit');
+Route::get('vendas/{venda}/editar', [VendaController::class, 'edit'])->name('vendas.edit');
 Route::delete('/vendas/{venda}', [VendaController::class, 'destroy'])->name('vendas.destroy');
 Route::get('/vendas/{venda}/parcelas', [VendaController::class, 'showParcelas'])->name('vendas.parcelas');
 Route::get('vendas/{venda}/pdf', [VendaController::class, 'generatePDF'])->name('vendas.pdf');
